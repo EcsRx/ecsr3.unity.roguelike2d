@@ -12,6 +12,7 @@ using Game.Configuration;
 using Game.Events;
 using R3;
 using SystemsR3.Events;
+using SystemsR3.Extensions;
 using SystemsR3.Systems.Conventional;
 
 namespace Game.Systems
@@ -42,6 +43,8 @@ namespace Game.Systems
         
         private async void CarryOutTurns()
         {
+            if (_isProcessing) { return; }
+            
             _isProcessing = true;
             await Task.Delay((int)GameConfiguration.TurnDelay);
 
@@ -54,9 +57,11 @@ namespace Game.Systems
                 await Task.Delay((int)GameConfiguration.TurnDelay);
             }
 
+            EventSystem
+                .Receive<PlayerTurnOverEvent>()
+                .SubscribeOnce(x => _isProcessing = false);
+            
             EventSystem.Publish(new PlayerTurnEvent());
-
-            _isProcessing = false;
         }
 
         private bool IsLevelLoaded()
@@ -72,7 +77,6 @@ namespace Game.Systems
             _updateSubscription = Observable.EveryUpdate()
                 .Where(x => IsLevelLoaded())
                 .Subscribe(x => {
-                    if (_isProcessing) { return; }
                     CarryOutTurns();
                 });
         }

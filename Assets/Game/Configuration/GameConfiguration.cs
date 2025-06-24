@@ -14,7 +14,7 @@
         {
             IntroLength = 2.0f;
             TurnDelay = 0.1f;
-            MovementSpeed = 7.0f;
+            MovementSpeed = 20.0f;
             MovementTime = 0.1f;
             StartingFoodPoints = 100;
             FoodValue = 10;

@@ -9,11 +9,13 @@ namespace Game.Components
     {
         public ReactiveProperty<Vector2> Movement { get; set; }
         public bool StopMovement { get; set; }
+        public bool IsMoving { get; set; }
 
         public MovementComponent()
         {
             Movement = new ReactiveProperty<Vector2>();
             StopMovement = false;
+            IsMoving = false;
         }
 
         public void Dispose()

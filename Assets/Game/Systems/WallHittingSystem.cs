@@ -12,6 +12,8 @@ namespace Game.Systems
 {
     public class WallHitSystem : IReactToEventSystem<WallHitEvent>
     {
+        private static readonly int PlayerChop = Animator.StringToHash("playerChop");
+        
         public IEntityCollection EntityCollection { get; }
         public IEntityComponentAccessor EntityComponentAccessor { get; }
 
@@ -30,7 +32,7 @@ namespace Game.Systems
             wallComponent.Health.Value--;
 
             var animator = EntityComponentAccessor.GetUnityComponent<Animator>(eventData.Player);
-            animator.SetTrigger("playerChop");
+            animator.SetTrigger(PlayerChop);
 
             if (wallComponent.Health.Value <= 0)
             { EntityCollection.Remove(eventData.Wall); }

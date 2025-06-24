@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Threading.Tasks;
 using EcsR3.Entities;
 using EcsR3.Entities.Accessors;
 using EcsR3.Extensions;
@@ -13,6 +14,7 @@ using Game.Configuration;
 using Game.Events;
 using R3;
 using SystemsR3.Events;
+using SystemsR3.Extensions;
 using UnityEngine;
 
 namespace Game.Systems
@@ -33,53 +35,55 @@ namespace Game.Systems
         }
 
         public Observable<Entity> ReactToEntity(IEntityComponentAccessor entityComponentAccessor, Entity entity)
-        {
-            var movementComponent = entityComponentAccessor.GetComponent<MovementComponent>(entity);
-            
-            return movementComponent.Movement.DistinctUntilChanged()
-                .Where(x => x != Vector2.zero)
-                .Select(x => entity);
-        }
+        { return Observable.EveryUpdate().Select(x => entity); }
 
         public void Process(IEntityComponentAccessor entityComponentAccessor, Entity entity)
         {
             var viewGameObject = entityComponentAccessor.GetGameObject(entity);
             var movementComponent = entityComponentAccessor.GetComponent<MovementComponent>(entity);
 
-            Vector2 currentPosition = viewGameObject.transform.position;
-            var destination = currentPosition + movementComponent.Movement.Value;
-            var collidedObject = CheckForCollision(viewGameObject, currentPosition, destination);
-            var canMove = collidedObject == null;
+            if (movementComponent.IsMoving || movementComponent.Movement.Value == Vector2.zero)
+            { return; }
 
             var isPlayer = entityComponentAccessor.HasComponent<PlayerComponent>(entity);
-
-            if (!canMove)
+            Vector2 currentPosition = viewGameObject.transform.position;
+            var destination = currentPosition + movementComponent.Movement.Value;
+            
+            var collidedObject = CheckForCollision(viewGameObject, currentPosition, destination);
+            var canMove = collidedObject == null;
+            if (canMove)
+            {
+                movementComponent.IsMoving = true;
+                
+                var rigidBody = viewGameObject.GetComponent<Rigidbody2D>();
+                MoveTowardsDestination(viewGameObject, rigidBody, destination, movementComponent)
+                    .ToObservable()
+                    .SubscribeOnce(x =>
+                    {
+                        movementComponent.IsMoving = false;
+                        _eventSystem.Publish(new EntityMovedEvent(isPlayer));
+                    
+                        if (!isPlayer) { return; }
+                    
+                        var playerComponent = entityComponentAccessor.GetComponent<PlayerComponent>(entity);
+                        playerComponent.Food.Value--;
+                        _eventSystem.Publish(new PlayerTurnOverEvent());
+                    });
+            }
+            else
             {
                 movementComponent.Movement.Value = Vector2.zero;
+                movementComponent.IsMoving = false;
 
                 var entityView = collidedObject.GetComponent<EntityView>();
                 if(!entityView) { return; }
 
                 if (isPlayer && collidedObject.tag.Contains("Wall"))
                 { WallHit(entityView.Entity, entity); }
-
-                if (isPlayer && collidedObject.tag.Contains("Enemy"))
+                else if (isPlayer && collidedObject.tag.Contains("Enemy"))
                 { EnemyHit(entityView.Entity, entity); }
-
-                if(!isPlayer && collidedObject.tag.Contains("Player"))
+                else if(!isPlayer && collidedObject.tag.Contains("Player"))
                 { PlayerHit(entityView.Entity, entity); }
-                
-                return;
-            }
-
-            var rigidBody = viewGameObject.GetComponent<Rigidbody2D>();
-            SmoothMovement(viewGameObject, rigidBody, destination, movementComponent);
-            _eventSystem.Publish(new EntityMovedEvent(isPlayer));
-
-            if (isPlayer)
-            {
-                var playerComponent = entityComponentAccessor.GetComponent<PlayerComponent>(entity);
-                playerComponent.Food.Value--;
             }
         }
 
@@ -94,7 +98,7 @@ namespace Game.Systems
             return hit.collider.gameObject;
         }
 
-        protected async void SmoothMovement(GameObject mover, Rigidbody2D rigidBody, Vector3 destination, MovementComponent movementComponent)
+        protected async Task MoveTowardsDestination(GameObject mover, Rigidbody2D rigidBody, Vector3 destination, MovementComponent movementComponent)
         {
             while (mover != null && Vector3.Distance(mover.transform.position, destination) > 0.1f)
             {
@@ -107,7 +111,7 @@ namespace Game.Systems
 
                 var newPostion = Vector3.MoveTowards(rigidBody.position, destination, _gameConfiguration.MovementSpeed * Time.deltaTime);
                 rigidBody.MovePosition(newPostion);
-                await System.Threading.Tasks.Task.Yield();
+                await Task.Yield();
             }
 
             if(mover != null)
@@ -119,16 +123,16 @@ namespace Game.Systems
         private void WallHit(Entity wall, Entity player)
         {
             _eventSystem.Publish(new WallHitEvent(wall, player));
+            _eventSystem.Publish(new PlayerTurnOverEvent());
         }
-
+        
         private void PlayerHit(Entity player, Entity enemy)
-        {
-            _eventSystem.Publish(new PlayerHitEvent(player, enemy));
-        }
+        { _eventSystem.Publish(new PlayerHitEvent(player, enemy)); }
 
         private void EnemyHit(Entity enemy, Entity player)
         {
             _eventSystem.Publish(new EnemyHitEvent(enemy, player));
+            _eventSystem.Publish(new PlayerTurnOverEvent());
         }
     }
 }
