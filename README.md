@@ -6,9 +6,9 @@ This is a simple port of the unity roguelike 2d demo project, it has tried to st
 unity example logic as possible but in some cases due to the paradigm or to make things simpler there 
 may be some slight changes.
 
-To find out more about the EcsRx framework go to:
+To find out more about the EcsR3 framework go to:
 
-- [EcsR3 Repository](https://github.com/grofit/ecsrx)
+- [EcsR3 Repository](https://github.com/grofit/ecsrx/ecsr3)
 
 ## Running it?
 
