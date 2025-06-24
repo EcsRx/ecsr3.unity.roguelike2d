@@ -19,8 +19,6 @@ namespace Game
 {
     public class Application : EcsR3ApplicationBehaviour
     {
-        private IEntityCollection defaultCollection;
-
         [Inject]
         private GameConfiguration _gameConfiguration;
         
@@ -69,7 +67,7 @@ namespace Game
         {
             levelComponent.HasLoaded.Value = false;
 
-            defaultCollection.RemoveEntitiesContaining(EntityComponentAccessor, typeof(GameBoardComponent),
+            EntityCollection.RemoveEntitiesContaining(EntityComponentAccessor, typeof(GameBoardComponent),
                 typeof(FoodComponent), typeof(WallComponent),
                 typeof(EnemyComponent), typeof(ExitComponent));
 
